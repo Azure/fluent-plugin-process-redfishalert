@@ -7,17 +7,21 @@ build with gem build
 install with gem install
     $ gem install fluent-plugin-redfish-alert.gem
 
-## Usage
-TODO: ADD MOre info
+## Configuration
 
+```
 <filter redfish.alert>
  @type process_redfishalert
   coloregion "#{ENV['COLO_REGION']}"
   username "#{ENV['REDFISH_USERNAME']}"
   passwordFile /path/to/file
 </filter>
+```
+
+Will add a field to the record named "machineID" 
+Will add a field to the record named "BaseChassisSerialNumber" ( unique ID of machine used for raising support requests)
+
 
 ## Contributing
-
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/fluent-plugin-redfish-alert.
+Please Read Contributing.md
 
