@@ -3,6 +3,8 @@ require 'helper'
 class ProcessRedfishAlertFilterTest < Test::Unit::TestCase
   include Fluent::Test::Helpers
 
+  SerialNumber = "123456"
+
   setup do
     Fluent::Test.setup
   end
@@ -15,22 +17,41 @@ class ProcessRedfishAlertFilterTest < Test::Unit::TestCase
   ]
 
   def create_driver(conf)
-    Fluent::Test::Driver::Filter.new(Fluent::ProcessRedfishAlert).configure(conf) do
-        # for testing
-        def getPassword()
-            return 'testPassword'
-        end
-    end.configure(conf)
+        Fluent::Test::Driver::Filter.new(Fluent::ProcessRedfishAlert) do
+            # for testing
+            def getPassword()
+                return 'testPassword'
+            end
+
+            def callTestRedfishGetAPI(host, resourceURI)
+                res = '{
+                    "SerialNumber":"123456"
+                }'
+
+                return JSON.parse(res)
+            end
+
+            def getRackGroupSerialNumber(host)
+                res = callTestRedfishGetAPI(host, "uri")
+                res["SerialNumber"]
+            end
+
+            def getRMCSerialNumber(host)
+                res = callTestRedfishGetAPI(host, "uri")
+                res["SerialNumber"]
+            end
+        end.configure(conf)
   end
 
   def test_configure
       d = create_driver(CONFIG)
-     assert_equal 'testcolo', d.instance.coloregion
+      assert_equal 'testcolo', d.instance.coloregion
+      assert_equal 'testuser', d.instance.username
   end
 
   def filter(records, conf = CONFIG)
       d = create_driver(conf)
-      d.run(default_tag: "redfhish.alert") do
+      d.run(default_tag: "redfish.alert") do
          records.each do |record|
              d.feed(record)
          end
@@ -38,28 +59,35 @@ class ProcessRedfishAlertFilterTest < Test::Unit::TestCase
       d.filtered_records
   end
 
-
-#   def test_snmptrap_filter
-#     records = [
-#         {
-#             "SNMPv2-MIB::sysUpTime.0"=>"179 days,13:26:54.66",
-#             "SNMPv2-MIB::snmpTrapOID.0"=>"SGI-UV300::chassisSensor",
-#             "SGI-UV300::ssnName"=>"UV300-00000547",
-#             "SGI-UV300::chassisName"=>"r001i24b",
-#             "SGI-UV300::chassisSensorName"=>"PSU2_COMP_TEMP1",
-#             "SGI-UV300::chassisSensorValue"=>"10.3289",
-#             "SGI-UV300::chassisSensorStatus"=>"1",
-#             "host"=>"172.17.0.2"
-#         }
-#     ]
-#     filtered_records = filter(records)
-#     assert_equal(records[0].length, filtered_records[0].length, "Incorrect record size")
-#     assert_equal(records[0]["host"], filtered_records[0]["host"], "Non MIB value was modified")
-#     # Values should remain unmodified.
-#     records.each { |recKey, recValue|
-#         fixedKey = recKey.to_s.gsub("-","_").gsub(".","_").gsub("::","_")
-#         assert_equal(records[0][recKey], filtered_records[0][fixedKey], "Value has been modified")
-#     }
-#   end
+  def test_redfish_filter
+    records = [
+        # A Sample Redfish Event
+        {
+            "Name":"Events",
+            "Events":[
+               {
+                  "EventTimestamp":"2020-07-08T21:27:34Z",
+                  "MessageArgs":[
+                     "rack1/chassis_u24/psu3"
+                  ],
+                  "Severity":"OK",
+                  "Message":"Test Message for rack1/chassis_u24/psu3",
+                  "MemberId":"1",
+                  "MessageId":"MessageId",
+                  "OriginOfCondition":"/URI/to/resource",
+                  "EventId":"EventID",
+                  "Oem":{},
+                  "EventType":"Alert"
+               }
+            ],
+            "@odata.type":"#Event.1.1.2.Event",
+            "REMOTE_ADDR":"1.2.3.4"
+         }
+    ]
+    filtered_records = filter(records)
+    assert_equal(records[0].length, filtered_records[0].length, "Incorrect record size")
+    assert_equal(filtered_records[0]["RMCSerialNumber"], SerialNumber)
+    assert_equal(filtered_records[0]["BaseChassisSerialNumber"], SerialNumber)
+  end
 
 end
