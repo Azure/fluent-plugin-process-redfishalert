@@ -57,7 +57,6 @@ module Fluent
     end
 
     def getRMCSerialNumber(host)
-      put "WHY\n\n"
       res = callRedfishGetAPI(host, "Chassis/RMC")
       return res["SerialNumber"]
     end
