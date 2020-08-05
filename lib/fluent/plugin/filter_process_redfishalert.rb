@@ -22,6 +22,7 @@ module Fluent
 
     def filter(tag, time, record)
      begin
+      # REMOTE_ADDR is the IP the event was sent from
       rmcSN = getRMCSerialNumber(record["REMOTE_ADDR"])
       if tag == "redfish.alert"
         rgSN = getRackGroupSerialNumber(record["REMOTE_ADDR"])
@@ -29,7 +30,9 @@ module Fluent
      rescue SecurityError => se
       record["error"] = "Error calling redfish API: #{se.message}"
      end
-     record["machineId"] = "SDFLEX:#{coloregion}:#{rmcSN}"
+     record["RMCSerialNumber"] = rmcSN
+     # BaseChassisSerialNumber is used as the identifier by OEMs
+     record["BaseChassisSerialNumber"] = rgSN
      record
     end
 
