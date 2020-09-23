@@ -51,7 +51,9 @@ module Fluent
 
       if response.code == "200"
         return JSON.parse(response.body)
-      else 
+      else
+        puts res.body
+        puts response.code
         raise SecurityError
       end
     end
