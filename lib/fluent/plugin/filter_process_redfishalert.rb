@@ -11,9 +11,12 @@ module Fluent
     config_param :coloregion, :string
     config_param :username, :string
     config_param :passwordFile, :string
+    config_param :hardware, :string, :default => "SDFLEX"
 
     def configure(conf)
       super
+        @hwtSNPartition = Hash["Dell_PowerEdge_iDRAC"=>"Systems/System.Embedded.1", "SDFLEX" => "Chassis/RMC"]
+        @hwtRackSNPartion = Hash["Dell_PowerEdge_iDRAC"=>"Systems/System.Embedded.1", "SDFLEX" => "Chassis/RackGroup"]
     end
 
     def start
@@ -24,7 +27,7 @@ module Fluent
      begin
       # REMOTE_ADDR is the IP the event was sent from
       rmcSN = getRMCSerialNumber(record["REMOTE_ADDR"])
-      if tag == "redfish.alert"
+      if tag.include? "alert"
         rgSN = getRackGroupSerialNumber(record["REMOTE_ADDR"])
       end
      rescue SecurityError => se
@@ -56,13 +59,21 @@ module Fluent
       end
     end
 
+    #we are using nodeID as the unique identifier for dell iDRAC
+    #also, for dell nodeID=SKU=ChassisServiceTag but differs from SN
     def getRMCSerialNumber(host)
-      res = callRedfishGetAPI(host, "Chassis/RMC")
+      res = callRedfishGetAPI(host, @hwtSNPartition[hardware])
+      if @hardware == "Dell_PowerEdge_iDRAC"
+        return res["SKU"]
+      end
       return res["SerialNumber"]
     end
 
     def getRackGroupSerialNumber(host)
-      res = callRedfishGetAPI(host, "Chassis/RackGroup")
+      res = callRedfishGetAPI(host, @hwtRackSNPartion[hardware])
+      if @hardware == "Dell_PowerEdge_iDRAC"
+        return res["SKU"]
+      end
       return res["SerialNumber"]
     end
 
