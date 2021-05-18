@@ -15,8 +15,8 @@ module Fluent
 
     def configure(conf)
       super
-        @hwtSNPartition = Hash["Dell_PowerEdge_iDRAC"=>"Systems/System.Embedded.1", "SDFLEX" => "Chassis/RMC"]
-        @hwtRackSNPartion = Hash["Dell_PowerEdge_iDRAC"=>"Systems/System.Embedded.1", "SDFLEX" => "Chassis/RackGroup"]
+        @hwtDeviceURI = Hash["Dell_PowerEdge_iDRAC"=>"Systems/System.Embedded.1", "SDFLEX" => "Chassis/RMC"]
+        @deviceRackURI = Hash["Dell_PowerEdge_iDRAC"=>"Systems/System.Embedded.1", "SDFLEX" => "Chassis/RackGroup"]
     end
 
     def start
@@ -26,9 +26,9 @@ module Fluent
     def filter(tag, time, record)
      begin
       # REMOTE_ADDR is the IP the event was sent from
-      rmcSN = getRMCSerialNumber(record["REMOTE_ADDR"])
+      rmcSN = getMachineIdentifier(record["REMOTE_ADDR"])
       if tag.include? "alert"
-        rgSN = getRackGroupSerialNumber(record["REMOTE_ADDR"])
+        rgSN = getRackGroupIdentifier(record["REMOTE_ADDR"])
       end
      rescue SecurityError => se
       record["error"] = "Error calling redfish API: #{se.message}"
@@ -61,16 +61,16 @@ module Fluent
 
     #we are using nodeID as the unique identifier for dell iDRAC
     #also, for dell nodeID=SKU=ChassisServiceTag but differs from SN
-    def getRMCSerialNumber(host)
-      res = callRedfishGetAPI(host, @hwtSNPartition[hardware])
+    def getMachineIdentifier(host)
+      res = callRedfishGetAPI(host, @hwtDeviceURI[hardware])
       if @hardware == "Dell_PowerEdge_iDRAC"
         return res["SKU"]
       end
       return res["SerialNumber"]
     end
 
-    def getRackGroupSerialNumber(host)
-      res = callRedfishGetAPI(host, @hwtRackSNPartion[hardware])
+    def getRackGroupIdentifier(host)
+      res = callRedfishGetAPI(host, @deviceRackURI[hardware])
       if @hardware == "Dell_PowerEdge_iDRAC"
         return res["SKU"]
       end

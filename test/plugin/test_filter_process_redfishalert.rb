@@ -13,7 +13,8 @@ class ProcessRedfishAlertFilterTest < Test::Unit::TestCase
     @type process_redfishalert
     coloregion testcolo
     username testuser
-    passwordFile 
+    passwordFile
+    hardware SDFLEX
   ]
 
   def create_driver(conf)
@@ -31,12 +32,12 @@ class ProcessRedfishAlertFilterTest < Test::Unit::TestCase
                 return JSON.parse(res)
             end
 
-            def getRackGroupSerialNumber(host)
+            def getRackGroupIdentifier(host)
                 res = callTestRedfishGetAPI(host, "uri")
                 res["SerialNumber"]
             end
 
-            def getRMCSerialNumber(host)
+            def getMachineIdentifier(host)
                 res = callTestRedfishGetAPI(host, "uri")
                 res["SerialNumber"]
             end
