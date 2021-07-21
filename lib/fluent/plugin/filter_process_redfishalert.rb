@@ -16,7 +16,7 @@ module Fluent
       super
         @hwtDeviceURI = Hash["Dell_PowerEdge_iDRAC"=>"Systems/System.Embedded.1", "SDFLEX" => "Chassis/RMC"]
         @deviceRackURI = Hash["Dell_PowerEdge_iDRAC"=>"Systems/System.Embedded.1", "SDFLEX" => "Chassis/RackGroup"]
-        @deviceField = Hash["Dell_PowerEdge_iDRAC"=>"SKU", "SDFLEX" => "SerialNumber"]
+        @deviceIDField = Hash["Dell_PowerEdge_iDRAC"=>"SKU", "SDFLEX" => "SerialNumber"]
     end
 
     def start
@@ -24,22 +24,24 @@ module Fluent
     end
 
     def filter(tag, time, record)
-     begin
+      begin
       # REMOTE_ADDR is the IP the event was sent from
       rmcSN = getMachineIdentifier(record["REMOTE_ADDR"])
-      if tag.include? "alert"
+      if tag == "redfish.alert"
         rgSN = getRackGroupIdentifier(record["REMOTE_ADDR"])
       end
-     rescue SecurityError => se
-      record["error"] = "Error calling redfish API: #{se.message}"
-     end
-	 if @hardware == "Dell_PowerEdge_iDRAC"
-	   record[ProductID] = rmcSN
-	 else
-       record["RMCSerialNumber"] = rmcSN
-       # BaseChassisSerialNumber is used as the identifier by OEMs
-       record["BaseChassisSerialNumber"] = rgSN
-     record
+      rescue SecurityError => se
+        record["error"] = "Error calling redfish API: #{se.message}"
+      end
+      if @hardware == "Dell_PowerEdge_iDRAC"
+        record["ProductID"] = rmcSN
+        #record["PowerState"] = getPowerState(record["REMOTE_ADDR"])
+      else
+        record["RMCSerialNumber"] = rmcSN
+        # BaseChassisSerialNumber is used as the identifier by OEMs
+        record["BaseChassisSerialNumber"] = rgSN
+      end
+      record
     end
 
     def callRedfishGetAPI(host, resourceURI)
@@ -58,22 +60,25 @@ module Fluent
       if response.code == "200" 
         return JSON.parse(response.body)
       else 
-	    puts "Response Body: #{response.body}"
-		puts "Status code: #{response.statuscode}"
+        puts "Response Body: #{response.body}"
+        puts "Status code: #{response.statuscode}"
         raise SecurityError
       end
     end
 
-    #we are using nodeID as the unique identifier for dell iDRAC
-    #also, for dell nodeID=SKU=ChassisServiceTag but differs from SN
     def getMachineIdentifier(host)
       res = callRedfishGetAPI(host, @hwtDeviceURI[hardware])
-      return res[@deviceField[hardware]]
+      return res[@deviceIDField[hardware]]
     end
 
     def getRackGroupIdentifier(host)
       res = callRedfishGetAPI(host, @deviceRackURI[hardware])
-      return res[@deviceField[hardware]]
+      return res[@deviceIDField[hardware]]
+    end
+
+    def getPowerState(host)
+      res = callRedfishGetAPI(host, @deviceRackURI[hardware])
+      return res["PowerState"]
     end
 
     def getPassword()
