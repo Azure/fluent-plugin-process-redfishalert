@@ -1,4 +1,3 @@
-
 require 'fluent/plugin/filter'
 require 'json'
 require 'net/http'
@@ -17,6 +16,7 @@ module Fluent
       super
         @hwtDeviceURI = Hash["Dell_PowerEdge_iDRAC"=>"Systems/System.Embedded.1", "SDFLEX" => "Chassis/RMC"]
         @deviceRackURI = Hash["Dell_PowerEdge_iDRAC"=>"Systems/System.Embedded.1", "SDFLEX" => "Chassis/RackGroup"]
+        @deviceField = Hash["Dell_PowerEdge_iDRAC"=>"SKU", "SDFLEX" => "SerialNumber"]
     end
 
     def start
@@ -33,9 +33,12 @@ module Fluent
      rescue SecurityError => se
       record["error"] = "Error calling redfish API: #{se.message}"
      end
-     record["RMCSerialNumber"] = rmcSN
-     # BaseChassisSerialNumber is used as the identifier by OEMs
-     record["BaseChassisSerialNumber"] = rgSN
+	 if @hardware == "Dell_PowerEdge_iDRAC"
+	   record[ProductID] = rmcSN
+	 else
+       record["RMCSerialNumber"] = rmcSN
+       # BaseChassisSerialNumber is used as the identifier by OEMs
+       record["BaseChassisSerialNumber"] = rgSN
      record
     end
 
@@ -52,9 +55,11 @@ module Fluent
 
       response = https.request(request)
 
-      if response.code == "200"
+      if response.code == "200" 
         return JSON.parse(response.body)
       else 
+	    puts "Response Body: #{response.body}"
+		puts "Status code: #{response.statuscode}"
         raise SecurityError
       end
     end
@@ -63,18 +68,12 @@ module Fluent
     #also, for dell nodeID=SKU=ChassisServiceTag but differs from SN
     def getMachineIdentifier(host)
       res = callRedfishGetAPI(host, @hwtDeviceURI[hardware])
-      if @hardware == "Dell_PowerEdge_iDRAC"
-        return res["SKU"]
-      end
-      return res["SerialNumber"]
+      return res[@deviceField[hardware]]
     end
 
     def getRackGroupIdentifier(host)
       res = callRedfishGetAPI(host, @deviceRackURI[hardware])
-      if @hardware == "Dell_PowerEdge_iDRAC"
-        return res["SKU"]
-      end
-      return res["SerialNumber"]
+      return res[@deviceField[hardware]]
     end
 
     def getPassword()
