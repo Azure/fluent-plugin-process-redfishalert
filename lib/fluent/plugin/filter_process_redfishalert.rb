@@ -60,9 +60,8 @@ module Fluent
       if response.code == "200" 
         return JSON.parse(response.body)
       else 
-        puts "Response Body: #{response.body}"
-        puts "Status code: #{response.statuscode}"
-        raise SecurityError
+        message = "Status code: #{response.statuscode}. Detailed Error: #{response.body}"
+        raise SecurityError, message
       end
     end
 
