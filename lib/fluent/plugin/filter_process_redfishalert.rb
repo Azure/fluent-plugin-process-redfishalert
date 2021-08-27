@@ -1,4 +1,3 @@
-
 require 'fluent/plugin/filter'
 require 'json'
 require 'net/http'
@@ -11,9 +10,13 @@ module Fluent
     config_param :coloregion, :string
     config_param :username, :string
     config_param :passwordFile, :string
+    config_param :hardware, :string, :default => "SDFLEX"
 
     def configure(conf)
       super
+        @hwtDeviceURI = Hash["Dell_PowerEdge_iDRAC"=>"Systems/System.Embedded.1", "SDFLEX" => "Chassis/RMC"]
+        @deviceRackURI = Hash["Dell_PowerEdge_iDRAC"=>"Systems/System.Embedded.1", "SDFLEX" => "Chassis/RackGroup"]
+        @deviceIDField = Hash["Dell_PowerEdge_iDRAC"=>"SKU", "SDFLEX" => "SerialNumber"]
     end
 
     def start
@@ -21,19 +24,24 @@ module Fluent
     end
 
     def filter(tag, time, record)
-     begin
+      begin
       # REMOTE_ADDR is the IP the event was sent from
-      rmcSN = getRMCSerialNumber(record["REMOTE_ADDR"])
+      rmcSN = getMachineIdentifier(record["REMOTE_ADDR"])
       if tag == "redfish.alert"
-        rgSN = getRackGroupSerialNumber(record["REMOTE_ADDR"])
+        rgSN = getRackGroupIdentifier(record["REMOTE_ADDR"])
       end
-     rescue SecurityError => se
-      record["error"] = "Error calling redfish API: #{se.message}"
-     end
-     record["RMCSerialNumber"] = rmcSN
-     # BaseChassisSerialNumber is used as the identifier by OEMs
-     record["BaseChassisSerialNumber"] = rgSN
-     record
+      rescue SecurityError => se
+        record["error"] = "Error calling redfish API: #{se.message}"
+      end
+      if @hardware == "Dell_PowerEdge_iDRAC"
+        record["ProductID"] = rmcSN
+        record["PowerState"] = getPowerState(record["REMOTE_ADDR"])
+      else
+        record["RMCSerialNumber"] = rmcSN
+        # BaseChassisSerialNumber is used as the identifier by OEMs
+        record["BaseChassisSerialNumber"] = rgSN
+      end
+      record
     end
 
     def callRedfishGetAPI(host, resourceURI)
@@ -49,21 +57,27 @@ module Fluent
 
       response = https.request(request)
 
-      if response.code == "200"
+      if response.code == "200" 
         return JSON.parse(response.body)
       else 
-        raise SecurityError
+        message = "Status code: #{response.statuscode}. Detailed Error: #{response.body}"
+        raise SecurityError, message
       end
     end
 
-    def getRMCSerialNumber(host)
-      res = callRedfishGetAPI(host, "Chassis/RMC")
-      return res["SerialNumber"]
+    def getMachineIdentifier(host)
+      res = callRedfishGetAPI(host, @hwtDeviceURI[hardware])
+      return res[@deviceIDField[hardware]]
     end
 
-    def getRackGroupSerialNumber(host)
-      res = callRedfishGetAPI(host, "Chassis/RackGroup")
-      return res["SerialNumber"]
+    def getRackGroupIdentifier(host)
+      res = callRedfishGetAPI(host, @deviceRackURI[hardware])
+      return res[@deviceIDField[hardware]]
+    end
+
+    def getPowerState(host)
+      res = callRedfishGetAPI(host, @deviceRackURI[hardware])
+      return res["PowerState"]
     end
 
     def getPassword()
