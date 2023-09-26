@@ -32,7 +32,7 @@ class ProcessRedfishAlertFilterTest < Test::Unit::TestCase
                     "PowerState":"On"
                 }'
 
-                return JSON.parse(res)
+              return JSON.parse(res)
             end
 
             def getRackGroupIdentifier(host)
@@ -59,14 +59,14 @@ class ProcessRedfishAlertFilterTest < Test::Unit::TestCase
 end
 
   def filter(records, conf = CONFIG)
-    d = create_driver(conf)
-    d.run(default_tag: "redfish.alert") do
-       records.each do |record|
-           d.feed(record)
-       end
-    end
-    d.filtered_records
-end
+      d = create_driver(conf)
+      d.run(default_tag: "redfish.alert") do
+        records.each do |record|
+          d.feed(record)
+        end
+      end
+      d.filtered_records
+  end
 
   def test_redfish_filter
     records = [
@@ -87,7 +87,7 @@ end
                   "EventId":"EventID",
                   "Oem":{},
                   "EventType":"Alert"
-                }
+              }
             ],
             "@odata.type":"#Event.1.1.2.Event",
             "REMOTE_ADDR":"1.2.3.4"
