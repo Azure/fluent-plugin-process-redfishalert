@@ -20,10 +20,10 @@ class ProcessRedfishAlertFilterTest < Test::Unit::TestCase
   SUPERMICRO_CONFIG = CONFIG.gsub(/hardware SDFLEX/, 'hardware SUPERMICRO')
 
   def create_driver(conf)
-          Fluent::Test::Driver::Filter.new(Fluent::ProcessRedfishAlert) do
+        Fluent::Test::Driver::Filter.new(Fluent::ProcessRedfishAlert) do
             # for testing
             def getPassword()
-                      return 'testPassword'
+              return 'testPassword'
             end
 
             def callTestRedfishGetAPI(host, resourceURI)
@@ -32,7 +32,7 @@ class ProcessRedfishAlertFilterTest < Test::Unit::TestCase
                   "PowerState":"On"
               }'
 
-                      return JSON.parse(res)
+              return JSON.parse(res)
             end
 
             def getRackGroupIdentifier(host)
@@ -67,27 +67,27 @@ class ProcessRedfishAlertFilterTest < Test::Unit::TestCase
       end
       d.filtered_records
   end
-  
+
   def test_redfish_filter
     records = [
         # A Sample Redfish Event
         {
             "Name":"Events",
             "Events":[
-                {
-                    "EventTimestamp":"2020-07-08T21:27:34Z",
+              {
+                  "EventTimestamp":"2020-07-08T21:27:34Z",
                   "MessageArgs":[
                      "rack1/chassis_u24/psu3"
                   ],
-                    "Severity":"OK",
-                    "Message":"Test Message for rack1/chassis_u24/psu3",
-                    "MemberId":"1",
-                    "MessageId":"MessageId",
-                    "OriginOfCondition":"/URI/to/resource",
-                    "EventId":"EventID",
-                    "Oem":{},
-                    "EventType":"Alert"
-                }
+                  "Severity":"OK",
+                  "Message":"Test Message for rack1/chassis_u24/psu3",
+                  "MemberId":"1",
+                  "MessageId":"MessageId",
+                  "OriginOfCondition":"/URI/to/resource",
+                  "EventId":"EventID",
+                  "Oem":{},
+                  "EventType":"Alert"
+              }
             ],
             "@odata.type":"#Event.1.1.2.Event",
             "REMOTE_ADDR":"1.2.3.4"
