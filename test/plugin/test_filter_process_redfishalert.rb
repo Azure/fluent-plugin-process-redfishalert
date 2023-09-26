@@ -23,7 +23,7 @@ class ProcessRedfishAlertFilterTest < Test::Unit::TestCase
         Fluent::Test::Driver::Filter.new(Fluent::ProcessRedfishAlert) do
             # for testing
             def getPassword()
-              return 'testPassword'
+                return 'testPassword'
             end
 
             def callTestRedfishGetAPI(host, resourceURI)
@@ -32,7 +32,7 @@ class ProcessRedfishAlertFilterTest < Test::Unit::TestCase
                     "PowerState":"On"
                 }'
 
-              return JSON.parse(res)
+                return JSON.parse(res)
             end
 
             def getRackGroupIdentifier(host)
@@ -53,17 +53,17 @@ class ProcessRedfishAlertFilterTest < Test::Unit::TestCase
   end
 
   def test_configure
-    d = create_driver(CONFIG)
-    assert_equal 'testcolo', d.instance.coloregion
-    assert_equal 'testuser', d.instance.username
-end
+      d = create_driver(CONFIG)
+      assert_equal 'testcolo', d.instance.coloregion
+      assert_equal 'testuser', d.instance.username
+  end
 
   def filter(records, conf = CONFIG)
       d = create_driver(conf)
       d.run(default_tag: "redfish.alert") do
-        records.each do |record|
-          d.feed(record)
-        end
+         records.each do |record|
+             d.feed(record)
+         end
       end
       d.filtered_records
   end
@@ -74,7 +74,7 @@ end
         {
             "Name":"Events",
             "Events":[
-              {
+               {
                   "EventTimestamp":"2020-07-08T21:27:34Z",
                   "MessageArgs":[
                      "rack1/chassis_u24/psu3"
@@ -87,7 +87,7 @@ end
                   "EventId":"EventID",
                   "Oem":{},
                   "EventType":"Alert"
-              }
+               }
             ],
             "@odata.type":"#Event.1.1.2.Event",
             "REMOTE_ADDR":"1.2.3.4"
