@@ -14,9 +14,9 @@ module Fluent
 
     def configure(conf)
       super
-        @hwtDeviceURI = Hash["Dell_PowerEdge_iDRAC"=>"Systems/System.Embedded.1", "SDFLEX" => "Chassis/RMC"]
-        @deviceRackURI = Hash["Dell_PowerEdge_iDRAC"=>"Systems/System.Embedded.1", "SDFLEX" => "Chassis/RackGroup"]
-        @deviceIDField = Hash["Dell_PowerEdge_iDRAC"=>"SKU", "SDFLEX" => "SerialNumber"]
+        @hwtDeviceURI = Hash["Dell_PowerEdge_iDRAC"=>"Systems/System.Embedded.1", "SDFLEX" => "Chassis/RMC", "SUPERMICRO" => "Systems/1"]
+        @deviceRackURI = Hash["Dell_PowerEdge_iDRAC"=>"Systems/System.Embedded.1", "SDFLEX" => "Chassis/RackGroup", "SUPERMICRO" => "Chassis/1"]
+        @deviceIDField = Hash["Dell_PowerEdge_iDRAC"=>"SKU", "SDFLEX" => "SerialNumber", "SUPERMICRO" => "SerialNumber"]
     end
 
     def start
@@ -35,6 +35,10 @@ module Fluent
       end
       if @hardware == "Dell_PowerEdge_iDRAC"
         record["ProductID"] = rmcSN
+        record["PowerState"] = getPowerState(record["REMOTE_ADDR"])
+      elsif @hardware == "SUPERMICRO"
+        record["ProductSerialNumber"] = rmcSN
+        record["ChassisSerialNumber"] = rgSN
         record["PowerState"] = getPowerState(record["REMOTE_ADDR"])
       else
         record["RMCSerialNumber"] = rmcSN

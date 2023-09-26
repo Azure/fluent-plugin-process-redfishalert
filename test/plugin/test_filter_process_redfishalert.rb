@@ -16,20 +16,23 @@ class ProcessRedfishAlertFilterTest < Test::Unit::TestCase
     passwordFile
     hardware SDFLEX
   ]
+  
+  SUPERMICRO_CONFIG = CONFIG.gsub(/hardware SDFLEX/, 'hardware SUPERMICRO')
 
   def create_driver(conf)
-        Fluent::Test::Driver::Filter.new(Fluent::ProcessRedfishAlert) do
+          Fluent::Test::Driver::Filter.new(Fluent::ProcessRedfishAlert) do
             # for testing
             def getPassword()
-                return 'testPassword'
+                      return 'testPassword'
             end
 
             def callTestRedfishGetAPI(host, resourceURI)
-                res = '{
-                    "SerialNumber":"123456"
-                }'
+              res = '{
+                  "SerialNumber":"123456",
+                  "PowerState":"On"
+              }'
 
-                return JSON.parse(res)
+                      return JSON.parse(res)
             end
 
             def getRackGroupIdentifier(host)
@@ -41,54 +44,65 @@ class ProcessRedfishAlertFilterTest < Test::Unit::TestCase
                 res = callTestRedfishGetAPI(host, "uri")
                 res["SerialNumber"]
             end
-        end.configure(conf)
+
+            def getPowerState(host)
+                res = callTestRedfishGetAPI(host, "uri")
+                res["PowerState"]
+            end
+    end.configure(conf)
   end
 
   def test_configure
-      d = create_driver(CONFIG)
-      assert_equal 'testcolo', d.instance.coloregion
-      assert_equal 'testuser', d.instance.username
+    d = create_driver(CONFIG)
+    assert_equal 'testcolo', d.instance.coloregion
+    assert_equal 'testuser', d.instance.username
   end
 
   def filter(records, conf = CONFIG)
       d = create_driver(conf)
       d.run(default_tag: "redfish.alert") do
-         records.each do |record|
-             d.feed(record)
-         end
+        records.each do |record|
+          d.feed(record)
+        end
       end
       d.filtered_records
   end
-
+  
   def test_redfish_filter
     records = [
         # A Sample Redfish Event
         {
             "Name":"Events",
             "Events":[
-               {
-                  "EventTimestamp":"2020-07-08T21:27:34Z",
+                {
+                    "EventTimestamp":"2020-07-08T21:27:34Z",
                   "MessageArgs":[
                      "rack1/chassis_u24/psu3"
                   ],
-                  "Severity":"OK",
-                  "Message":"Test Message for rack1/chassis_u24/psu3",
-                  "MemberId":"1",
-                  "MessageId":"MessageId",
-                  "OriginOfCondition":"/URI/to/resource",
-                  "EventId":"EventID",
-                  "Oem":{},
-                  "EventType":"Alert"
-               }
+                    "Severity":"OK",
+                    "Message":"Test Message for rack1/chassis_u24/psu3",
+                    "MemberId":"1",
+                    "MessageId":"MessageId",
+                    "OriginOfCondition":"/URI/to/resource",
+                    "EventId":"EventID",
+                    "Oem":{},
+                    "EventType":"Alert"
+                }
             ],
             "@odata.type":"#Event.1.1.2.Event",
             "REMOTE_ADDR":"1.2.3.4"
-         }
+        }
     ]
     filtered_records = filter(records)
-    assert_equal(records[0].length, filtered_records[0].length, "Incorrect record size")
+    assert_equal(records[0].length, filtered_records[0].length, "Incorrect record size for SDFLEX")
     assert_equal(filtered_records[0]["RMCSerialNumber"], SerialNumber)
     assert_equal(filtered_records[0]["BaseChassisSerialNumber"], SerialNumber)
-  end
 
+    # Test for SUPERMICRO
+    filtered_records = filter(records, SUPERMICRO_CONFIG)
+    assert_equal(records[0].length, filtered_records[0].length, "Incorrect record size for SUPERMICRO")
+    assert_equal(filtered_records[0]["ProductSerialNumber"], SerialNumber)
+    assert_equal(filtered_records[0]["ChassisSerialNumber"], SerialNumber)
+    assert_equal(filtered_records[0]["PowerState"], "On")
+  end
 end
