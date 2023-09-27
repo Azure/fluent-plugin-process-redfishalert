@@ -16,6 +16,8 @@ class ProcessRedfishAlertFilterTest < Test::Unit::TestCase
     passwordFile
     hardware SDFLEX
   ]
+  
+  SUPERMICRO_CONFIG = CONFIG.gsub(/hardware SDFLEX/, 'hardware SUPERMICRO')
 
   def create_driver(conf)
         Fluent::Test::Driver::Filter.new(Fluent::ProcessRedfishAlert) do
@@ -26,7 +28,8 @@ class ProcessRedfishAlertFilterTest < Test::Unit::TestCase
 
             def callTestRedfishGetAPI(host, resourceURI)
                 res = '{
-                    "SerialNumber":"123456"
+                    "SerialNumber":"123456",
+                    "PowerState":"On"
                 }'
 
                 return JSON.parse(res)
@@ -41,7 +44,12 @@ class ProcessRedfishAlertFilterTest < Test::Unit::TestCase
                 res = callTestRedfishGetAPI(host, "uri")
                 res["SerialNumber"]
             end
-        end.configure(conf)
+
+            def getPowerState(host)
+                res = callTestRedfishGetAPI(host, "uri")
+                res["PowerState"]
+            end
+    end.configure(conf)
   end
 
   def test_configure
@@ -83,12 +91,18 @@ class ProcessRedfishAlertFilterTest < Test::Unit::TestCase
             ],
             "@odata.type":"#Event.1.1.2.Event",
             "REMOTE_ADDR":"1.2.3.4"
-         }
+          }
     ]
     filtered_records = filter(records)
-    assert_equal(records[0].length, filtered_records[0].length, "Incorrect record size")
+    assert_equal(records[0].length, filtered_records[0].length, "Incorrect record size for SDFLEX")
     assert_equal(filtered_records[0]["RMCSerialNumber"], SerialNumber)
     assert_equal(filtered_records[0]["BaseChassisSerialNumber"], SerialNumber)
-  end
 
+    # Test for SUPERMICRO
+    filtered_records = filter(records, SUPERMICRO_CONFIG)
+    assert_equal(records[0].length, filtered_records[0].length, "Incorrect record size for SUPERMICRO")
+    assert_equal(filtered_records[0]["ProductSerialNumber"], SerialNumber)
+    assert_equal(filtered_records[0]["ChassisSerialNumber"], SerialNumber)
+    assert_equal(filtered_records[0]["PowerState"], "On")
+  end
 end
