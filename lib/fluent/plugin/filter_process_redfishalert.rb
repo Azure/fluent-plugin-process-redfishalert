@@ -57,7 +57,7 @@ module Fluent
 
       header = {'Content-Type': 'application/json'}
       request = Net::HTTP::Get.new(uri.request_uri, header)
-      request.basic_auth(username, getPassword())
+      request.basic_auth(username, getPassword(host))
 
       response = https.request(request)
 
@@ -84,8 +84,11 @@ module Fluent
       return res["PowerState"]
     end
 
-    def getPassword()
-      File.read(passwordFile).strip
+    def getPassword(host)
+      passwords_json = JSON.parse(File.read(passwordFile))
+      password = passwords_json[host]
+      raise "No password found for host #{host}" unless password
+      password.strip
     end
   end
 end

@@ -22,7 +22,7 @@ class ProcessRedfishAlertFilterTest < Test::Unit::TestCase
   def create_driver(conf)
         Fluent::Test::Driver::Filter.new(Fluent::ProcessRedfishAlert) do
             # for testing
-            def getPassword()
+            def getPassword(host)
                 return 'testPassword'
             end
 
