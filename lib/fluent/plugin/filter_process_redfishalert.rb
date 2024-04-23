@@ -80,6 +80,7 @@ module Fluent
         return res[@deviceIDField[hardware]]
       else
         res = callRedfishGetAPI(host, @hwtDeviceURI[hardware])  
+        return res[@deviceIDField[hardware]]
       end
     end
 
