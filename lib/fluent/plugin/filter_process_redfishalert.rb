@@ -71,17 +71,12 @@ module Fluent
     end
 
     def getMachineIdentifier(host)
-      if @coloregion == "MWH02B"
-        begin
-          res = callRedfishGetAPI(host, @hwtDeviceURI[hardware])
-        rescue Net::HTTPNotFound
-          res = callRedfishGetAPI(host, @alternativeEndpointForSDFlex) if @hardware == "SDFLEX"
-        end
-        return res[@deviceIDField[hardware]]
-      else
-        res = callRedfishGetAPI(host, @hwtDeviceURI[hardware])  
-        return res[@deviceIDField[hardware]]
+      begin
+        res = callRedfishGetAPI(host, @hwtDeviceURI[hardware])
+      rescue Net::HTTPNotFound
+        res = callRedfishGetAPI(host, @alternativeEndpointForSDFlex) if @hardware == "SDFLEX"
       end
+      return res[@deviceIDField[hardware]]
     end
 
     def getRackGroupIdentifier(host)
