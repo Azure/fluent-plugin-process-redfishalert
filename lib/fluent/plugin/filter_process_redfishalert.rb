@@ -82,7 +82,7 @@ module Fluent
         return res[@deviceIDField[hardware]]
       else
         puts "Entered else block"
-        res = callRedfishGetAPI(host,  @alternativeEndpointForSDFlex) if @hardware == "SDFLEX"
+        res = callRedfishGetAPI(host, @hwtDeviceURI[hardware])
         return res[@deviceIDField[hardware]]
       end
     end
