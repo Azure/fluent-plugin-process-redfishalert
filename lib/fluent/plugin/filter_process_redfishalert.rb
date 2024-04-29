@@ -17,7 +17,7 @@ module Fluent
         @hwtDeviceURI = Hash["Dell_PowerEdge_iDRAC"=>"Systems/System.Embedded.1", "SDFLEX" => "Chassisss/RMC", "SUPERMICRO" => "Systems/1"]
         @deviceRackURI = Hash["Dell_PowerEdge_iDRAC"=>"Systems/System.Embedded.1", "SDFLEX" => "Chassis/RackGroup", "SUPERMICRO" => "Chassis/1"]
         @deviceIDField = Hash["Dell_PowerEdge_iDRAC"=>"SKU", "SDFLEX" => "SerialNumber", "SUPERMICRO" => "SerialNumber"]
-        @alternativeEndpointForSDFlex = "Chassiss/RMC"
+        @alternativeEndpointForSDFlex = "Chassis/RMC"
     end
 
     def start
@@ -82,7 +82,7 @@ module Fluent
         return res[@deviceIDField[hardware]]
       else
         puts "Entered else block"
-        res = callRedfishGetAPI(host, @hwtDeviceURI[hardware])  
+        res = callRedfishGetAPI(host,  @alternativeEndpointForSDFlex) if @hardware == "SDFLEX"
         return res[@deviceIDField[hardware]]
       end
     end
