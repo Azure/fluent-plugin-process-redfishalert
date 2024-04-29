@@ -75,7 +75,7 @@ module Fluent
         puts "Entered if block"
         begin
           res = callRedfishGetAPI(host, @hwtDeviceURI[hardware])
-        rescue Net::HTTPNotFound
+        rescue SecurityError => e
           puts "Entered 404 error block"
           res = callRedfishGetAPI(host, @alternativeEndpointForSDFlex) if @hardware == "SDFLEX"
         end
