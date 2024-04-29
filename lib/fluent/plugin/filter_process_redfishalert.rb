@@ -14,10 +14,10 @@ module Fluent
 
     def configure(conf)
       super
-        @hwtDeviceURI = Hash["Dell_PowerEdge_iDRAC"=>"Systems/System.Embedded.1", "SDFLEX" => "Chassis/RMC", "SUPERMICRO" => "Systems/1"]
+        @hwtDeviceURI = Hash["Dell_PowerEdge_iDRAC"=>"Systems/System.Embedded.1", "SDFLEX" => "Chassisss/RMC", "SUPERMICRO" => "Systems/1"]
         @deviceRackURI = Hash["Dell_PowerEdge_iDRAC"=>"Systems/System.Embedded.1", "SDFLEX" => "Chassis/RackGroup", "SUPERMICRO" => "Chassis/1"]
         @deviceIDField = Hash["Dell_PowerEdge_iDRAC"=>"SKU", "SDFLEX" => "SerialNumber", "SUPERMICRO" => "SerialNumber"]
-        @alternativeEndpointForSDFlex = "Managers/RMC"
+        @alternativeEndpointForSDFlex = "Chassiss/RMC"
     end
 
     def start
@@ -71,14 +71,17 @@ module Fluent
     end
 
     def getMachineIdentifier(host)
-      if @coloregion == "MWH02B"
+      if @coloregion == "DSM05A"
+        puts "Entered if block"
         begin
           res = callRedfishGetAPI(host, @hwtDeviceURI[hardware])
         rescue Net::HTTPNotFound
+          puts "Entered 404 error block"
           res = callRedfishGetAPI(host, @alternativeEndpointForSDFlex) if @hardware == "SDFLEX"
         end
         return res[@deviceIDField[hardware]]
       else
+        puts "Entered else block"
         res = callRedfishGetAPI(host, @hwtDeviceURI[hardware])  
         return res[@deviceIDField[hardware]]
       end
