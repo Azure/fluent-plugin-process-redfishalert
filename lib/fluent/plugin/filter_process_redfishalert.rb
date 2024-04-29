@@ -74,7 +74,7 @@ module Fluent
       if @coloregion == "MWH02B"
         begin
           res = callRedfishGetAPI(host, @hwtDeviceURI[hardware])
-        rescue Net::HTTPNotFound
+        rescue NoMethodError => e
           res = callRedfishGetAPI(host, @alternativeEndpointForSDFlex) if @hardware == "SDFLEX"
         end
         return res[@deviceIDField[hardware]]
