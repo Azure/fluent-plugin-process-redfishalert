@@ -77,12 +77,12 @@ module Fluent
           res = callRedfishGetAPI(host, @hwtDeviceURI[hardware])
         rescue Net::HTTPNotFound
           puts "Entered 404 error block"
-          res = callRedfishGetAPI(host, @alternativeEndpointForSDFlex) if @hardware == "SDFLEX"
+          res = callRedfishGetAPI(host, @hwtDeviceURI[hardware])
         end
         return res[@deviceIDField[hardware]]
       else
         puts "Entered else block"
-        res = callRedfishGetAPI(host, @hwtDeviceURI[hardware])
+        res = callRedfishGetAPI(host, @alternativeEndpointForSDFlex) if @hardware == "SDFLEX"
         return res[@deviceIDField[hardware]]
       end
     end
