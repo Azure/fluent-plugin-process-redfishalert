@@ -73,6 +73,7 @@ module Fluent
     def getMachineIdentifier(host)
       begin
         res = callRedfishGetAPI(host, @hwtDeviceURI[hardware])
+        # alternativeRMCEndpointForSDFlex fetches the SerialNumber from the RMC endpoint for SDFlex 280 blades
       rescue NoMethodError => e
         res = callRedfishGetAPI(host, @alternativeRMCEndpointForSDFlex) if @hardware == "SDFLEX"
       end
