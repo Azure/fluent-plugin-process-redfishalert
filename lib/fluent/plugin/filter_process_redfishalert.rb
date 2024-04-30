@@ -17,6 +17,7 @@ module Fluent
         @hwtDeviceURI = Hash["Dell_PowerEdge_iDRAC"=>"Systems/System.Embedded.1", "SDFLEX" => "Chassis/RMC", "SUPERMICRO" => "Systems/1"]
         @deviceRackURI = Hash["Dell_PowerEdge_iDRAC"=>"Systems/System.Embedded.1", "SDFLEX" => "Chassis/RackGroup", "SUPERMICRO" => "Chassis/1"]
         @deviceIDField = Hash["Dell_PowerEdge_iDRAC"=>"SKU", "SDFLEX" => "SerialNumber", "SUPERMICRO" => "SerialNumber"]
+        @alternativeRMCEndpointForSDFlex = "Managers/RMC"
     end
 
     def start
@@ -70,7 +71,12 @@ module Fluent
     end
 
     def getMachineIdentifier(host)
-      res = callRedfishGetAPI(host, @hwtDeviceURI[hardware])
+      begin
+        res = callRedfishGetAPI(host, @hwtDeviceURI[hardware])
+        # alternativeRMCEndpointForSDFlex fetches the SerialNumber from the RMC endpoint for SDFlex 280 blades
+      rescue NoMethodError => e
+        res = callRedfishGetAPI(host, @alternativeRMCEndpointForSDFlex) if @hardware == "SDFLEX"
+      end
       return res[@deviceIDField[hardware]]
     end
 
