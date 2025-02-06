@@ -54,7 +54,7 @@ module Fluent
       
       https = Net::HTTP.new(uri.host, uri.port)
       https.use_ssl = true
-      https.verify_mode = OpenSSL::SSL::VERIFY_NONE
+      https.verify_mode = OpenSSL::SSL::VERIFY_PEER
 
       header = {'Content-Type': 'application/json'}
       request = Net::HTTP::Get.new(uri.request_uri, header)
