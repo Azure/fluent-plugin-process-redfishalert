@@ -1,4 +1,5 @@
 require 'helper'
+require 'tempfile'
 
 class ProcessRedfishAlertFilterTest < Test::Unit::TestCase
   include Fluent::Test::Helpers
@@ -104,5 +105,77 @@ class ProcessRedfishAlertFilterTest < Test::Unit::TestCase
     assert_equal(filtered_records[0]["ProductSerialNumber"], SerialNumber)
     assert_equal(filtered_records[0]["ChassisSerialNumber"], SerialNumber)
     assert_equal(filtered_records[0]["PowerState"], "On")
+  end
+
+  # --- CWE-918 (SSRF) coverage: validate_host! is what protects callRedfishGetAPI
+  # from being pointed at an arbitrary attacker-controlled host via REMOTE_ADDR. ---
+
+  def test_validate_host_allows_private_range
+    d = create_driver(CONFIG)
+    assert_nothing_raised do
+      d.instance.validate_host!("10.1.2.3")
+    end
+  end
+
+  def test_validate_host_rejects_public_ip
+    d = create_driver(CONFIG)
+    assert_raise(SecurityError) do
+      d.instance.validate_host!("8.8.8.8")
+    end
+  end
+
+  def test_validate_host_rejects_non_ip_input
+    d = create_driver(CONFIG)
+    assert_raise(SecurityError) do
+      d.instance.validate_host!("not-an-ip")
+    end
+  end
+
+  def test_validate_host_respects_custom_allowed_ranges
+    custom_conf = CONFIG + "\n    allowed_host_ranges 203.0.113.0/24\n"
+    d = create_driver(custom_conf)
+    assert_nothing_raised do
+      d.instance.validate_host!("203.0.113.5")
+    end
+    assert_raise(SecurityError) do
+      d.instance.validate_host!("10.1.2.3")
+    end
+  end
+
+  # --- CWE-522 (insufficiently protected credentials) coverage: validate_password_file_permissions!
+  # is what protects getPassword from silently trusting a loosely-permissioned secret file. ---
+
+  def test_validate_password_file_permissions_accepts_owner_only
+    Tempfile.create("password") do |f|
+      f.write("secret")
+      f.flush
+      File.chmod(0600, f.path)
+      conf = CONFIG.sub(/passwordFile\s*\n/, "passwordFile #{f.path}\n")
+      d = create_driver(conf)
+      assert_nothing_raised do
+        d.instance.validate_password_file_permissions!
+      end
+    end
+  end
+
+  def test_validate_password_file_permissions_rejects_group_readable
+    Tempfile.create("password") do |f|
+      f.write("secret")
+      f.flush
+      File.chmod(0640, f.path)
+      conf = CONFIG.sub(/passwordFile\s*\n/, "passwordFile #{f.path}\n")
+      d = create_driver(conf)
+      assert_raise(SecurityError) do
+        d.instance.validate_password_file_permissions!
+      end
+    end
+  end
+
+  def test_validate_password_file_permissions_rejects_missing_file
+    conf = CONFIG.sub(/passwordFile\s*\n/, "passwordFile /nonexistent/path/to/password\n")
+    d = create_driver(conf)
+    assert_raise(SecurityError) do
+      d.instance.validate_password_file_permissions!
+    end
   end
 end
