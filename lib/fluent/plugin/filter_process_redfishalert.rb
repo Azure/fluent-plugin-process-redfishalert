@@ -10,7 +10,12 @@ module Fluent
     # config_param
     config_param :coloregion, :string
     config_param :username, :string
-    config_param :passwordFile, :string
+    # CWE-522 remediation: the BMC/RMC credential is fetched live from Azure Key
+    # Vault via the AKS cluster's user-assigned managed identity, instead of
+    # being read from a plaintext file on disk. There is no file-based fallback.
+    config_param :keyVaultName, :string
+    config_param :msiClientId, :string
+    config_param :secretName, :string
     config_param :hardware, :string, :default => "SDFLEX"
     # Comma-separated list of IPs/CIDRs this plugin is allowed to call out to.
     # REMOTE_ADDR on an inbound record is attacker-influenced (it's whatever the
@@ -19,8 +24,25 @@ module Fluent
     # networks live on; override per-deployment if the fleet uses different ranges.
     config_param :allowed_host_ranges, :string, :default => "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
 
+    IMDS_TOKEN_URI = 'http://169.254.169.254/metadata/identity/oauth2/token'
+    KEY_VAULT_RESOURCE = 'https://vault.azure.net'
+    KEY_VAULT_API_VERSION = '7.4'
+    # How long a successfully-fetched secret is reused before refetching. This is
+    # a resilience/performance measure (avoid a Key Vault round-trip per alert),
+    # not a security fallback -- it never serves a value that wasn't itself
+    # freshly fetched from Key Vault within this window.
+    SECRET_CACHE_TTL_SECONDS = 600
+    # Kept small and fast: `filter` runs on Fluentd's single event-loop thread, so
+    # a long/blocking retry here would stall alert processing for every record
+    # during a real Key Vault/IMDS outage -- exactly when hardware alerts matter most.
+    MAX_FETCH_ATTEMPTS = 2
+    RETRY_BACKOFF_SECONDS = 0.5
+
     def configure(conf)
       super
+        raise Fluent::ConfigError, "keyVaultName must be set" if keyVaultName.nil? || keyVaultName.empty?
+        raise Fluent::ConfigError, "msiClientId must be set" if msiClientId.nil? || msiClientId.empty?
+        raise Fluent::ConfigError, "secretName must be set" if secretName.nil? || secretName.empty?
         @hwtDeviceURI = Hash["Dell_PowerEdge_iDRAC"=>"Systems/System.Embedded.1", "SDFLEX" => "Chassis/RMC", "SUPERMICRO" => "Systems/1"]
         @deviceRackURI = Hash["Dell_PowerEdge_iDRAC"=>"Systems/System.Embedded.1", "SDFLEX" => "Chassis/RackGroup", "SUPERMICRO" => "Chassis/1"]
         @deviceIDField = Hash["Dell_PowerEdge_iDRAC"=>"SKU", "SDFLEX" => "SerialNumber", "SUPERMICRO" => "SerialNumber"]
@@ -112,22 +134,72 @@ module Fluent
       return res["PowerState"]
     end
 
+    # Guards against CWE-522 (insufficiently protected credentials): the credential
+    # is never written to disk. It's fetched live from Key Vault using the pod's
+    # managed identity and held in memory only for SECRET_CACHE_TTL_SECONDS, so
+    # there is no plaintext file for another local user/process to read.
+    # @cachedSecret/@cacheExpiresAt are plain instance vars: safe because Fluentd
+    # invokes a filter plugin's `filter` (and therefore getPassword) from a single
+    # event-loop thread per plugin instance, not concurrently.
     def getPassword()
-      validate_password_file_permissions!
-      File.read(passwordFile).strip
+      return @cachedSecret if secret_cache_valid?
+
+      last_error = nil
+      MAX_FETCH_ATTEMPTS.times do |attempt|
+        begin
+          token = fetch_msi_token
+          secret = fetch_key_vault_secret(token)
+          @cachedSecret = secret
+          @cacheExpiresAt = Time.now + SECRET_CACHE_TTL_SECONDS
+          return secret
+        rescue => e
+          last_error = e
+          sleep(retry_backoff_seconds) if attempt < MAX_FETCH_ATTEMPTS - 1
+        end
+      end
+      raise SecurityError, "Unable to fetch RMC/BMC credential from Key Vault '#{keyVaultName}' after #{MAX_FETCH_ATTEMPTS} attempt(s): #{last_error&.message}"
     end
 
-    # Guards against CWE-522 (insufficiently protected credentials): if the mounted
-    # secret file is readable/writable by group or other, the BMC credential is
-    # exposed to any other local user/process on the host. Fail closed instead of
-    # silently reading a loosely-permissioned secret.
-    def validate_password_file_permissions!
-      mode = File.stat(passwordFile).mode & 0777
-      if (mode & 0077) != 0
-        raise SecurityError, "passwordFile #{passwordFile} must not be readable/writable by group or other (mode #{format('%o', mode)})"
+    def secret_cache_valid?
+      !@cachedSecret.nil? && !@cacheExpiresAt.nil? && Time.now < @cacheExpiresAt
+    end
+
+    # Overridable so tests don't have to sleep through real retry backoff.
+    def retry_backoff_seconds
+      RETRY_BACKOFF_SECONDS
+    end
+
+    def fetch_msi_token
+      uri = URI(IMDS_TOKEN_URI)
+      uri.query = URI.encode_www_form(
+        'api-version' => '2018-02-01',
+        'resource' => KEY_VAULT_RESOURCE,
+        'client_id' => msiClientId
+      )
+      request = Net::HTTP::Get.new(uri)
+      request['Metadata'] = 'true'
+      response = Net::HTTP.start(uri.hostname, uri.port, :open_timeout => 5, :read_timeout => 5) { |http| http.request(request) }
+      unless response.code == '200'
+        raise "IMDS token request failed with status #{response.code}"
       end
-    rescue Errno::ENOENT
-      raise SecurityError, "passwordFile #{passwordFile} does not exist"
+      JSON.parse(response.body)['access_token']
+    end
+
+    def fetch_key_vault_secret(token)
+      uri = URI("https://#{keyVaultName}.vault.azure.net/secrets/#{secretName}")
+      uri.query = URI.encode_www_form('api-version' => KEY_VAULT_API_VERSION)
+      request = Net::HTTP::Get.new(uri)
+      request['Authorization'] = "Bearer #{token}"
+      https = Net::HTTP.new(uri.host, uri.port)
+      https.use_ssl = true
+      https.verify_mode = OpenSSL::SSL::VERIFY_PEER
+      https.open_timeout = 5
+      https.read_timeout = 5
+      response = https.request(request)
+      unless response.code == '200'
+        raise "Key Vault secret request failed with status #{response.code}"
+      end
+      JSON.parse(response.body)['value']
     end
   end
 end

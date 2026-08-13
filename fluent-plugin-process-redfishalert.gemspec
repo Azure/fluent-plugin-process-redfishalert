@@ -1,7 +1,7 @@
 
 Gem::Specification.new do |spec|
   spec.name          = "fluent-plugin-process-redfishalert"
-  spec.version       = "0.2.0"
+  spec.version       = "0.3.0"
   spec.authors       = ["gadelamo"]
   spec.email         = ["gadelamo@microsoft.com"]
   spec.summary       = "a fluentd plugin to retrieve infro from an RMC using redfish"
