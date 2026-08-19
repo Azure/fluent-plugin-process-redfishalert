@@ -41,6 +41,11 @@ Will add a field to the record named "BaseChassisSerialNumber" ( unique ID of ma
   `keyVaultName` -- this plugin does not grant or manage that access.
 - The Redfish host (`REMOTE_ADDR` on the inbound record) is validated against `allowed_host_ranges` before any
   outbound HTTPS request is made, to prevent SSRF against arbitrary hosts.
+- The Redfish/BMC HTTPS call does not verify the server certificate (`VERIFY_NONE`). BMC/RMC management
+  interfaces in this fleet use self-signed certs by design; verification here is intentionally skipped
+  since the target is already restricted to internal management-network ranges above. TLS encryption
+  is still in effect -- only certificate identity checking is skipped. The Key Vault call above is
+  unaffected and still fully verifies its certificate.
 
 
 

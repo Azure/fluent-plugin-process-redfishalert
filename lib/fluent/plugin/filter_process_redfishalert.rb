@@ -47,7 +47,11 @@ module Fluent
         @deviceRackURI = Hash["Dell_PowerEdge_iDRAC"=>"Systems/System.Embedded.1", "SDFLEX" => "Chassis/RackGroup", "SUPERMICRO" => "Chassis/1"]
         @deviceIDField = Hash["Dell_PowerEdge_iDRAC"=>"SKU", "SDFLEX" => "SerialNumber", "SUPERMICRO" => "SerialNumber"]
         @alternativeRMCEndpointForSDFlex = "Managers/RMC"
-        @allowedHostRanges = allowed_host_ranges.split(",").map { |cidr| IPAddr.new(cidr.strip) }
+        begin
+          @allowedHostRanges = allowed_host_ranges.split(",").map { |cidr| IPAddr.new(cidr.strip) }
+        rescue IPAddr::Error, ArgumentError => e
+          raise Fluent::ConfigError, "allowed_host_ranges contains an invalid IP/CIDR (#{allowed_host_ranges.inspect}): #{e.message}"
+        end
     end
 
     def start
@@ -186,7 +190,7 @@ module Fluent
       request['Metadata'] = 'true'
       response = Net::HTTP.start(uri.hostname, uri.port, :open_timeout => 5, :read_timeout => 5) { |http| http.request(request) }
       unless response.code == '200'
-        raise "IMDS token request failed with status #{response.code}"
+        raise "IMDS token request failed with status #{response.code}: #{response.body}"
       end
       JSON.parse(response.body)['access_token']
     end
@@ -196,14 +200,9 @@ module Fluent
       uri.query = URI.encode_www_form('api-version' => KEY_VAULT_API_VERSION)
       request = Net::HTTP::Get.new(uri)
       request['Authorization'] = "Bearer #{token}"
-      https = Net::HTTP.new(uri.host, uri.port)
-      https.use_ssl = true
-      https.verify_mode = OpenSSL::SSL::VERIFY_PEER
-      https.open_timeout = 5
-      https.read_timeout = 5
-      response = https.request(request)
+      response = Net::HTTP.start(uri.host, uri.port, :use_ssl => true, :open_timeout => 5, :read_timeout => 5) { |http| http.request(request) }
       unless response.code == '200'
-        raise "Key Vault secret request failed with status #{response.code}"
+        raise "Key Vault secret request failed with status #{response.code}: #{response.body}"
       end
       JSON.parse(response.body)['value']
     end
