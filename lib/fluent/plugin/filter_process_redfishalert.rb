@@ -85,7 +85,13 @@ module Fluent
       
       https = Net::HTTP.new(uri.host, uri.port)
       https.use_ssl = true
-      https.verify_mode = OpenSSL::SSL::VERIFY_PEER
+      # BMC/RMC management interfaces in this fleet present self-signed certs by
+      # design (see the matching `insecure true` on the fluentd HTTP ingest side).
+      # Outbound access is already restricted to internal management-network
+      # ranges by validate_host! above (CWE-918 SSRF guard), so full chain
+      # verification here isn't meaningful and previously silently dropped every
+      # event from these devices once VERIFY_PEER started being enforced.
+      https.verify_mode = OpenSSL::SSL::VERIFY_NONE
 
       header = {'Content-Type': 'application/json'}
       request = Net::HTTP::Get.new(uri.request_uri, header)
